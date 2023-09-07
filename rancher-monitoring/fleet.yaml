@@ -4,6 +4,128 @@ helm:
   chart: rancher-monitoring
   version: 102.0.1+up40.1.2
   releaseName: rancher-monitoring
+  values:
+    prometheus-node-exporter:
+      resources:
+        limits:
+          cpu: 800m
+          memory: 50Mi
+        requests:
+          cpu: 200m
+          memory: 35Mi
+    prometheusOperator:
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 2000Mi
+        requests:
+          cpu: 200m
+          memory: 100Mi
+    kube-state-metrics:
+      resources:
+        limits:
+          cpu: 200m
+          memory: 500Mi
+      replicas: 1
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app.kubernetes.io/name
+                      operator: In
+                      values:
+                        -  kube-state-metrics
+                topologyKey: kubernetes.io/hostname
+      extraArgs:
+        - --metric-labels-allowlist=pods=[*],namespaces=[*],deployments=[*],daemonsets=[*],statefulsets=[*],jobs=[*],horizontalpodautoscalers=[*]
+    alertmanager:
+      alertmanagerSpec:
+        alertmanagerConfiguration:
+          name: config-alertmanager-icdc
+        replicas: 2
+        podAntiAffinity: soft
+      ingress:
+        enabled: true
+        hosts:
+          - ""
+        paths:
+          - /
+        pathType: Prefix
+        annotations:
+          nginx.ingress.kubernetes.io/auth-realm: Authentication Required
+          nginx.ingress.kubernetes.io/auth-secret: alertmanager-basic-auth
+          nginx.ingress.kubernetes.io/auth-type: basic
+    ingressNginx:
+      enabled: true
+      namespace: kube-system
+      service:
+        port: 9913
+        targetPort: 10254
+        selector:
+          app.kubernetes.io/instance: rke2-ingress-nginx
+          app.kubernetes.io/component: controller
+      serviceMonitor:
+        interval: "30s"
+    prometheus:
+      ingress:
+        annotations:
+        enabled: true
+        hosts:
+          - ""
+        labels: { }
+        paths:
+          - /
+        pathType: Prefix
+      prometheusSpec:
+#        Utile pour faire du remotewrite avec metricbeat
+#        remoteWrite:
+#          - url: http://metricbeat-metricbeat-metrics.metricbeat.svc.cluster.local:9201/write
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 4000Mi
+          requests:
+            cpu: 750m
+            memory: 750Mi
+        evaluationInterval: 1m
+        retentionSize: 50GiB
+        scrapeInterval: 1m
+        replicas: 2
+        podAntiAffinity: soft
+    rke2IngressNginx:
+      enabled: false
+      clients:
+        tolerations: [ ]
+    rke2ControllerManager:
+      enabled: true
+      https:
+        enabled: true
+        insecureSkipVerify: true
+    rke2Etcd:
+      enabled: true
+    rke2Proxy:
+      enabled: true
+    rke2Scheduler:
+      enabled: true
+      https:
+        enabled: true
+        insecureSkipVerify: true
+    grafana:
+      ingress:
+        enabled: true
+        hosts:
+          - ""
+        paths:
+          -  /
+        pathType: Prefix 
+    defaultRules:
+      rules:
+        kubernetesApps: false
+        kubernetesResources: false
+        node: false
 diff:
   comparePatches:
     - apiVersion: admissionregistration.k8s.io/v1
