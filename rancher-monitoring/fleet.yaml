@@ -69,6 +69,19 @@ helm:
           app.kubernetes.io/component: controller
       serviceMonitor:
         interval: "30s"
+        metricRelabelings:
+          - sourceLabels: [pod]
+            regex: .*
+            action: labeldrop
+          - sourceLabels: [instance]
+            regex: .*
+            action: labeldrop
+          - sourceLabels: [namespace]
+            regex: .*
+            action: labeldrop
+          - sourceLabels: [__name__]
+            regex: nginx_http_requests_total
+            action: drop
     prometheus:
       ingress:
         annotations:
